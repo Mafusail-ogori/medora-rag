@@ -1,0 +1,7 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+boto3==1.38.30
+requests==2.32.3
+litellm==1.72.1
+pydantic==2.11.5
+python-dotenv==1.1.0
