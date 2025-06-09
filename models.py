@@ -2,10 +2,10 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
 class UserDetails(BaseModel):
-    blood_type: str
-    age: int
-    gender: str
-    bio: str
+    blood_type: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    bio: Optional[str] = None
 
 class RequestBody(BaseModel):
     cnn_response_url: str

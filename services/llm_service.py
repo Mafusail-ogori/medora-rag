@@ -11,9 +11,70 @@ class LLMService:
     def __init__(self):
         self.model = config.LLM_MODEL
 
+    def format_user_profile(self, user_details: UserDetails) -> str:
+        """Format user profile with available information, handling missing details gracefully"""
+        profile_parts = []
+
+        # Handle age
+        if user_details.age is not None:
+            profile_parts.append(f"{user_details.age}-year-old")
+        else:
+            profile_parts.append("Patient of unspecified age")
+
+        # Handle gender
+        if user_details.gender:
+            profile_parts.append(user_details.gender.strip())
+        else:
+            profile_parts.append("of unspecified gender")
+
+        # Handle blood type
+        if user_details.blood_type:
+            profile_parts.append(f"Blood type {user_details.blood_type.strip()}")
+        else:
+            profile_parts.append("Blood type not provided")
+
+        # Handle bio/medical background
+        if user_details.bio and user_details.bio.strip():
+            medical_background = f"Medical background: {user_details.bio.strip()}"
+        else:
+            medical_background = "Medical background: No additional medical history provided"
+
+        # Combine profile parts
+        basic_profile = " ".join(profile_parts)
+        return f"{basic_profile}. {medical_background}"
+
+    def check_missing_details(self, user_details: UserDetails) -> list:
+        """Check which user details are missing and return a list of missing fields"""
+        missing_fields = []
+
+        if not user_details.age:
+            missing_fields.append("age")
+        if not user_details.gender or not user_details.gender.strip():
+            missing_fields.append("gender")
+        if not user_details.blood_type or not user_details.blood_type.strip():
+            missing_fields.append("blood_type")
+        if not user_details.bio or not user_details.bio.strip():
+            missing_fields.append("medical_history")
+
+        return missing_fields
+
     def create_medical_prompt(self, user_details: UserDetails, condition: str,
                               probability: float, weaviate_content: str) -> str:
-        """Create a structured medical consultation prompt"""
+        """Create a structured medical consultation prompt, handling missing user details"""
+
+        # Format patient profile with available information
+        patient_profile = self.format_user_profile(user_details)
+
+        # Check for missing details
+        missing_details = self.check_missing_details(user_details)
+
+        # Create additional instruction for missing details
+        missing_details_instruction = ""
+        if missing_details:
+            missing_list = ", ".join(missing_details)
+            missing_details_instruction = f"""
+Note: Some patient details are missing ({missing_list}). Please acknowledge these missing details in your assessment and recommend that the patient provides this information for a more comprehensive evaluation."""
+
         prompt = f"""You are a doctor providing a medical consultation. Write a formal report following this exact structure:
 
 Re: Condition Consultation: {condition}
@@ -22,11 +83,13 @@ Dear [Patient's Name],
 
 Thank you for choosing our medical facility for your healthcare needs. Based on the diagnostic findings and medical history you have provided, it appears that you have a condition known as {condition}.
 
-Patient Profile: {user_details.age}-year-old {user_details.gender}, Blood type {user_details.blood_type}. Medical background: {user_details.bio}
+Patient Profile: {patient_profile}
 
 Our diagnosis is supported by the confidence score ({probability:.3f}) assigned by our clinical decision support tool.
 
 Clinical Reference: {weaviate_content}
+
+{missing_details_instruction}
 
 Please provide the following sections:
 
@@ -40,7 +103,12 @@ Please provide the following sections:
    b) Expected symptom progression
    c) Potential complications if untreated
 
-Keep each subsection concise (2-3 sentences). If condition is serious, recommend immediate medical consultation."""
+3. Recommendations:
+   a) Immediate steps and follow-up care
+   b) Lifestyle modifications if applicable
+   c) When to seek urgent medical attention
+
+Keep each subsection concise (2-3 sentences). If condition is serious, recommend immediate medical consultation. If patient details are incomplete, mention the importance of providing complete medical information for accurate diagnosis and treatment planning."""
 
         return prompt
 
