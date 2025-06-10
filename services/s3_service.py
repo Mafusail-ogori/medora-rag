@@ -59,7 +59,7 @@ class S3Service:
         except Exception as e:
             raise ValueError(f"Error extracting user_uid: {str(e)}")
 
-    def upload_response(self, response_content: str, user_details: UserDetails, cnn_response_url: str) -> str:
+    def upload_response(self, response_content: str, user_details: UserDetails, cnn_response_url: str, chat_id: str) -> str:
         """Upload LLM response to S3 and return the URL"""
         try:
             # Get current date and time
@@ -72,12 +72,14 @@ class S3Service:
             user_uid = self.extract_user_uid_from_url(cnn_response_url)
 
             # Create the folder structure: user_data/{user_uid}/{date}/results/
-            filename = f"user_data/{user_uid}/{date_folder}/results/llm_response_{date_filename}_{timestamp}.json"
+            # Updated filename format to include chatId at the end
+            filename = f"user_data/{user_uid}/{date_folder}/results/llm_response_{date_filename}_{timestamp}_{chat_id}.json"
 
             response_data = {
                 "timestamp": current_date.isoformat(),
                 "user_details": user_details.dict(),
                 "llm_response": response_content,
+                "chat_id": chat_id,  # Include chatId in the response data
                 "approved": False  # Default to False, will be updated by doctor
             }
 

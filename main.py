@@ -31,7 +31,7 @@ llm_service = LLMService()
 def process_medical_analysis_sync(request: RequestBody):
     """Synchronous processing of medical analysis"""
     try:
-        logger.info(f"Starting processing for request: {request.user_details}")
+        logger.info(f"Starting processing for request: {request.user_details}, chat_id: {request.chat_id}")
 
         # Step 1: Fetch CNN analysis results from S3
         cnn_data = s3_service.fetch_json(request.cnn_response_url)
@@ -59,8 +59,13 @@ def process_medical_analysis_sync(request: RequestBody):
         llm_response = llm_service.generate_response(medical_prompt)
         logger.info("LLM response generated successfully")
 
-        # Step 6: Upload response to S3
-        s3_response_url = s3_service.upload_response(llm_response, request.user_details, request.cnn_response_url)
+        # Step 6: Upload response to S3 (now includes chat_id)
+        s3_response_url = s3_service.upload_response(
+            llm_response,
+            request.user_details,
+            request.cnn_response_url,
+            request.chat_id
+        )
         logger.info(f"Response uploaded to S3: {s3_response_url}")
 
         logger.info("Processing completed successfully")
@@ -71,7 +76,8 @@ def process_medical_analysis_sync(request: RequestBody):
             "request_id": hash(str(request.user_details)),
             "s3_response_url": s3_response_url,
             "top_condition": top_condition,
-            "probability": probability
+            "probability": probability,
+            "chat_id": request.chat_id
         }
 
     except Exception as e:

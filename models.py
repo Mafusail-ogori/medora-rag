@@ -7,9 +7,11 @@ class UserDetails(BaseModel):
     gender: Optional[str] = None
     bio: Optional[str] = None
 
+# In your models.py file, update the RequestBody class:
 class RequestBody(BaseModel):
-    cnn_response_url: str
     user_details: UserDetails
+    cnn_response_url: str
+    chat_id: str
 
 class WeaviateSearchRequest(BaseModel):
     query: str
