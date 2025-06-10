@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException
-import threading
 import logging
 
 from config import config
@@ -29,10 +28,10 @@ weaviate_service = WeaviateService()
 llm_service = LLMService()
 
 
-def process_medical_analysis_background(request: RequestBody):
-    """Synchronous background task to process medical analysis"""
+def process_medical_analysis_sync(request: RequestBody):
+    """Synchronous processing of medical analysis"""
     try:
-        logger.info(f"Starting background processing for request: {request.user_details}")
+        logger.info(f"Starting processing for request: {request.user_details}")
 
         # Step 1: Fetch CNN analysis results from S3
         cnn_data = s3_service.fetch_json(request.cnn_response_url)
@@ -64,34 +63,33 @@ def process_medical_analysis_background(request: RequestBody):
         s3_response_url = s3_service.upload_response(llm_response, request.user_details, request.cnn_response_url)
         logger.info(f"Response uploaded to S3: {s3_response_url}")
 
-        logger.info("Background processing completed successfully")
+        logger.info("Processing completed successfully")
+
+        return {
+            "status": "completed",
+            "message": "Medical analysis processing completed successfully",
+            "request_id": hash(str(request.user_details)),
+            "s3_response_url": s3_response_url,
+            "top_condition": top_condition,
+            "probability": probability
+        }
 
     except Exception as e:
-        logger.error(f"Error in background processing: {str(e)}", exc_info=True)
+        logger.error(f"Error in processing: {str(e)}", exc_info=True)
+        raise e
 
 
 @app.post("/process-medical-analysis")
 async def process_medical_analysis(request: RequestBody):
-    """Fire-and-forget endpoint to trigger medical analysis processing"""
+    """Synchronous endpoint that waits for medical analysis to complete"""
     try:
-        # Start processing in a daemon thread - returns immediately
-        thread = threading.Thread(
-            target=process_medical_analysis_background,
-            args=(request,),
-            daemon=True
-        )
-        thread.start()
-
-        # Return immediately without waiting
-        return {
-            "status": "accepted",
-            "message": "Medical analysis processing has been initiated",
-            "request_id": hash(str(request.user_details))
-        }
+        # Process synchronously and wait for completion
+        result = process_medical_analysis_sync(request)
+        return result
 
     except Exception as e:
-        logger.error(f"Error initiating medical analysis: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to initiate processing: {str(e)}")
+        logger.error(f"Error in medical analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Medical analysis failed: {str(e)}")
 
 
 @app.get("/health", response_model=HealthResponse)
